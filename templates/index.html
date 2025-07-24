@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMatch - Movie Recommendation System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">🎬 CineMatch</h1>
+            <p class="tagline">Discover your next favorite movie</p>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="search-section">
+            <div class="container">
+                <h2>Find Similar Movies</h2>
+                <div class="search-container">
+                    <input type="text" class="search-input" placeholder="Enter a movie name (e.g., The Dark Knight)" id="movieInput">
+                    <button class="search-btn" type="button" id="searchBtn">Get Recommendations</button>
+                </div>
+                <p class="search-hint">Enter the name of a movie you enjoyed, and we'll recommend similar films!</p>
+                
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner"></div>
+                    <p>Finding recommendations...</p>
+                </div>
+                
+                <div class="error-message" id="errorMessage">
+                    <p>Sorry, we couldn't find recommendations for that movie. Please try another movie name.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="recommendations-section">
+            <div class="container">
+                <h3 class="section-title" id="sectionTitle">Sample Recommendations</h3>
+                <div class="movies-grid" id="moviesGrid">
+                    <!-- Sample movie card - will be replaced by API results -->
+                    <div class="movie-card">
+                        <div class="movie-poster">
+                            <div class="placeholder-text">🎬<br>Movie Poster</div>
+                        </div>
+                        <div class="movie-info">
+                            <h4 class="movie-title">Search for a movie to get recommendations</h4>
+                            <p class="movie-year">-</p>
+                            <p class="movie-genre">Enter a movie name above</p>
+                            <div class="movie-rating">
+                                <span class="rating-stars">★★★★★</span>
+                                <span class="rating-score">-</span>
+                            </div>
+                            <p class="movie-description">Use the search box above to find movies similar to your favorites. Our AI will analyze your input and suggest movies you might enjoy.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 CineMatch. Powered by Machine Learning.</p>
+        </div>
+    </footer>
+
+    <script>
+        const API_BASE_URL = window.location.origin;
+        
+        const movieInput = document.getElementById('movieInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const errorMessage = document.getElementById('errorMessage');
+        const moviesGrid = document.getElementById('moviesGrid');
+        const sectionTitle = document.getElementById('sectionTitle');
+
+        // Add event listeners
+        searchBtn.addEventListener('click', handleSearch);
+        movieInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                handleSearch();
+            }
+        });
+
+        async function handleSearch() {
+            const movieName = movieInput.value.trim();
+            
+            if (!movieName) {
+                alert('Please enter a movie name');
+                return;
+            }
+
+            // Show loading state
+            setLoadingState(true);
+            hideError();
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/recommend?movie=${encodeURIComponent(movieName)}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to get recommendations');
+                }
+
+                if (data.recommendations && data.recommendations.length > 0) {
+                    displayRecommendations(data.recommendations, data.query);
+                } else {
+                    showError('No recommendations found for this movie. Please try another movie name.');
+                }
+
+            } catch (error) {
+                console.error('Error fetching recommendations:', error);
+                showError('Unable to connect to the recommendation service. Please try again later.');
+            } finally {
+                setLoadingState(false);
+            }
+        }
+
+        function displayRecommendations(recommendations, query) {
+            sectionTitle.textContent = `Movies similar to "${query}"`;
+            moviesGrid.innerHTML = '';
+
+            recommendations.forEach((movie, index) => {
+                const movieCard = createMovieCard(movie, index);
+                moviesGrid.appendChild(movieCard);
+            });
+        }
+
+        function createMovieCard(movie, index) {
+            const card = document.createElement('div');
+            card.className = 'movie-card';
+            card.style.animationDelay = `${index * 0.1}s`;
+
+            const stars = generateStars(movie.rating);
+            
+            card.innerHTML = `
+                <div class="movie-poster">
+                    ${movie.poster_url ? `<img src="${movie.poster_url}" alt="${movie.title} poster">` : `<div class="placeholder-text">🎬<br>${movie.title}</div>`}
+                </div>
+                <div class="movie-info">
+                    <h4 class="movie-title">${movie.title}</h4>
+                    <p class="movie-year">${movie.year}</p>
+                    <p class="movie-genre">${movie.genre}</p>
+                    <div class="movie-rating">
+                        <span class="rating-stars">${stars}</span>
+                        <span class="rating-score">${movie.rating}</span>
+                        <span class="similarity-score">${movie.similarity_score}% match</span>
+                    </div>
+                    <p class="movie-description">${movie.description}</p>
+                </div>
+            `;
+
+            return card;
+        }
+
+        function generateStars(rating) {
+            const numRating = parseFloat(rating);
+            if (isNaN(numRating)) return '★★★★★';
+            
+            const fullStars = Math.floor(numRating / 2);
+            const hasHalfStar = (numRating % 2) >= 1;
+            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+            
+            return '★'.repeat(fullStars) + (hasHalfStar ? '☆' : '') + '☆'.repeat(emptyStars);
+        }
+
+        function setLoadingState(isLoading) {
+            if (isLoading) {
+                searchBtn.disabled = true;
+                searchBtn.textContent = 'Searching...';
+                loadingSpinner.style.display = 'block';
+            } else {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Get Recommendations';
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        function showError(message) {
+            errorMessage.querySelector('p').textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
