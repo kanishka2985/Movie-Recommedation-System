@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from flask_cors import CORS
+#from flask_cors import CORS
 import pandas as pd
 import numpy as np
 import joblib
@@ -8,7 +8,7 @@ import requests
 import re
 
 app = Flask(__name__)
-CORS(app)
+#CORS(app)
 
 TMDB_API_KEY = '0ffe789e840303831098b2e536957fd3'
 DEFAULT_POSTER_URL = 'https://via.placeholder.com/500x750'
